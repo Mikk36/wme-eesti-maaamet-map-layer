@@ -1,32 +1,38 @@
 // ==UserScript==
-// @name			WME Eesti Maa-amet WMS kihid
-// @version			1.0.4
-// @author			Hapsal_PA. Co authors: (petrjanik, d2-mac, MajkiiTelini)
-// @description		Displays WMS layers from Estonia Land Board WMS services (Maa-amet) in WME.
-// @include			https://*.waze.com/*/editor*
-// @include			https://*.waze.com/editor*
-// @include			https://*.waze.com/map-editor*
-// @include			https://*.waze.com/beta_editor*
-// @include			https://editor-beta.waze.com*
-// @run-at			document-end
-// @namespace https://greasyfork.org/users/331322
+// @name            WME Eesti Maa-amet WMS kihid
+// @version         1.0.5
+// @author          Hapsal_PA. Co authors: (petrjanik, d2-mac, MajkiiTelini)
+// @description     Displays WMS layers from Estonia Land Board WMS services (Maa-amet) in WME.
+// @include         https://*.waze.com/*/editor*
+// @include         https://*.waze.com/editor*
+// @include         https://*.waze.com/map-editor*
+// @include         https://*.waze.com/beta_editor*
+// @include         https://editor-beta.waze.com*
+// @run-at          document-end
+// @namespace       https://greasyfork.org/users/331322
+// @source          https://github.com/Mikk36/wme-eesti-maaamet-map-layer
 // ==/UserScript==
 
-/* Changelog:
- *	1.0.4 - fixed the visual style
- *	1.0.3 - fixed the new WME layer switching update
- *	1.0.2 - fixed layers
- *	1.0.1 - v2019.08.21 - first version, modifications of "Czech WMS layers".
+/**
+ * Changelog:
+ *
+ * 1.0.5 - fix higher zoom levels
+ * 1.0.4 - fixed the visual style
+ * 1.0.3 - fixed the new WME layer switching update
+ * 1.0.2 - fixed layers
+ * 1.0.1 - v2019.08.21 - first version, modifications of "Czech WMS layers".
  */
 
-var W;
-var OL;
-var I18n;
+/**
+ *
+ */
+
+let W, OpenLayers, I18n;
 init();
 
 function init(e) {
   W = unsafeWindow.W;
-  OL = unsafeWindow.OpenLayers;
+  OpenLayers = unsafeWindow.OpenLayers;
   I18n = unsafeWindow.I18n;
   if (e && e.user === null) {
     return;
@@ -44,14 +50,19 @@ function init(e) {
     return;
   }
 
-  // Maa-ameti teenuse ühendus
-  var serviceWmsMaaamet= {"type" : "WMS", "url" : "https://tiles.maaamet.ee/tm/?","attribution" : "Maa-amet", "comment" : "Maa-amet WMS"};
+  // Maa-amet (Land Board) service connection
+  const serviceWmsMaaamet = {
+    "type": "WMS",
+    "url": "https://tiles.maaamet.ee/tm/?",
+    "attribution": "Maa-amet",
+    "comment": "Maa-amet WMS"
+  };
 
-  // menüü pealkiri
-  var groupTogglerWMS = addGroupToggler(false, "layer-switcher-group_wms", "Maa-ameti kihid");
+  // Menu title
+  const groupTogglerWMS = addGroupToggler(false, "layer-switcher-group_wms", "Maa-ameti kihid");
 
-  // kihid
-  var layersInfo = [
+  // Layers
+  const layersInfo = [
     {
       key: "kaart",
       name: "Eesti kaart",
@@ -69,30 +80,30 @@ function init(e) {
     }
   ];
 
-  var layerTogglers = {};
+  const layerTogglers = {};
 
-  for(var i = 0; i < layersInfo.length; i++) {
-    var layerInfo = layersInfo[i];
-    var mapLayer = addNewLayer(layerInfo.key, serviceWmsMaaamet, layerInfo.key, layerInfo.zIndex);
-    layerTogglers["wms_" + layerInfo.key] = addLayerToggler(groupTogglerWMS, layerInfo.name, [mapLayer]);
+  for (let i = 0; i < layersInfo.length; i++) {
+    let layerInfo = layersInfo[i];
+    let mapLayer = addNewLayer(layerInfo.key, serviceWmsMaaamet, layerInfo.key, layerInfo.zIndex);
+    layerTogglers[`wms_${layerInfo.key}`] = addLayerToggler(groupTogglerWMS, layerInfo.name, [mapLayer]);
   }
 
   W.map.events.register("addlayer", null, setZOrdering(layerTogglers));
   W.map.events.register("removelayer", null, setZOrdering(layerTogglers));
 
   if (localStorage.WMSLayers) {
-    var JSONStorageOptions = JSON.parse(localStorage.WMSLayers);
-    for (var key in layerTogglers) {
+    let JSONStorageOptions = JSON.parse(localStorage.WMSLayers);
+    for (let key in layerTogglers) {
       if (JSONStorageOptions[key]) {
         document.getElementById(layerTogglers[key].htmlItem).click();
       }
     }
   }
 
-  var saveWMSLayersOptions = function() {
+  const saveWMSLayersOptions = () => {
     if (localStorage) {
-      var JSONStorageOptions = {};
-      for (var key in layerTogglers) {
+      let JSONStorageOptions = {};
+      for (let key in layerTogglers) {
         JSONStorageOptions[key] = document.getElementById(layerTogglers[key].htmlItem).checked;
       }
       localStorage.WMSLayers = JSON.stringify(JSONStorageOptions);
@@ -101,55 +112,56 @@ function init(e) {
   window.addEventListener("beforeunload", saveWMSLayersOptions, false);
 }
 
-// kihi lisamine
+// Layer creation
 function addNewLayer(id, service, serviceLayers, zIndex) {
-  var newLayer = {};
-  newLayer.uniqueName = "_" + id;
-  newLayer.zIndex = (typeof zIndex === 'undefined') ? 0 : zIndex;
-  newLayer.layer = new OL.Layer.WMS(
-      id, service.url,
+  const newLayer = {};
+  newLayer.uniqueName = `_${id}`;
+  newLayer.zIndex = (typeof zIndex === "undefined") ? 0 : zIndex;
+  newLayer.layer = new OpenLayers.Layer.WMS(
+      id,
+      service.url,
       {
-        layers: serviceLayers ,
+        layers: serviceLayers,
         transparent: "true",
         format: "image/png"
       },
       {
-        tileSize: new OL.Size(256,256),
+        tileSize: new OpenLayers.Size(256, 256),
         isBaseLayer: false,
         visibility: false,
         transitionEffect: "resize",
         attribution: service.attribution,
         uniqueName: newLayer.uniqueName,
-        projection: new OL.Projection("EPSG:3301", "+proj=lcc +lat_1=59.33333333333334 +lat_2=58 +lat_0=57.51755393055556 +lon_0=24 +x_0=500000 +y_0=6375000 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs")
+        serverResolutions: [38.218514137268066, 19.109257068634033, 9.554628534317017, 4.777314267158508, 2.388657133579254, 1.194328566789627, 0.5971642833948135],
+        resolutions: [38.218514137268066, 19.109257068634033, 9.554628534317017, 4.777314267158508, 2.388657133579254, 1.194328566789627, 0.5971642833948135, 0.29858214169740677, 0.14929107084870338, 0.07464553542435169, 0.037322767712175846],
       }
   );
   return newLayer;
 }
 
-// kihtide peamenüü
+// Layers menu
 function addGroupToggler(isDefault, layerSwitcherGroupItemName, layerGroupVisibleName) {
-  var group;
+  let group;
   if (isDefault === true) {
     group = document.getElementById(layerSwitcherGroupItemName).parentElement.parentElement;
-  }
-  else {
-    var layerGroupsList = document.getElementsByClassName("list-unstyled togglers")[0];
+  } else {
+    const layerGroupsList = document.getElementsByClassName("list-unstyled togglers")[0];
     group = document.createElement("li");
     group.className = "group";
-    var togglerContainer = document.createElement("div");
+    const togglerContainer = document.createElement("div");
     togglerContainer.className = "toggler layer-switcher-toggler-tree-category";
-    var divI = document.createElement("i");
+    const divI = document.createElement("i");
     divI.className = "toggle-category w-icon w-icon-caret-down";
     divI.id = "arrow";
-    divI.addEventListener('click', listToggle);
-    var spanLabel = document.createElement ("wz-toggle-switch");
+    divI.addEventListener("click", listToggle);
+    const spanLabel = document.createElement("wz-toggle-switch");
     spanLabel.className = "layer-switcher-group_toggler hydrated toggle";
     spanLabel.checked = "true";
     spanLabel.id = "maaameti-kihtide-toggle";
-    var label = document.createElement("label");
+    const label = document.createElement("label");
     label.htmlFor = spanLabel.id;
     label.className = "label-text";
-    var togglerChildrenList = document.createElement("ul");
+    const togglerChildrenList = document.createElement("ul");
     togglerChildrenList.className = "children";
     togglerContainer.appendChild(divI);
     label.appendChild(document.createTextNode(layerGroupVisibleName));
@@ -162,48 +174,95 @@ function addGroupToggler(isDefault, layerSwitcherGroupItemName, layerGroupVisibl
   return group;
 }
 
-// kihi alammenüü
-function addLayerToggler(groupToggler, layerName, layerArray, layer) {
-  var layerToggler = {};
-  var layerShortcut = layerName.replace(/ /g, "_").replace(".", "");
-  layerToggler.htmlItem = "layer-switcher-item_" + layerShortcut;
+// Layer submenu
+function addLayerToggler(groupToggler, layerName, layerArray) {
+  const layerToggler = {};
+  const layerShortcut = layerName.replace(/ /g, "_").replace(".", "");
+  layerToggler.htmlItem = `layer-switcher-item_${layerShortcut}`;
   layerToggler.layerArray = layerArray;
-  var layer_container = groupToggler.getElementsByClassName("children")[0];
+  const layer_container = groupToggler.getElementsByClassName("children")[0];
   layer_container.id = "list";
-  var layerGroupCheckbox = groupToggler.getElementsByClassName("toggler")[0].getElementsByClassName("toggle")[0];
-  var toggler = document.createElement("li");
-  var togglerContainer = document.createElement("div");
+  const layerGroupCheckbox = groupToggler.getElementsByClassName("toggler")[0].getElementsByClassName("toggle")[0];
+  const toggler = document.createElement("li");
+  const togglerContainer = document.createElement("div");
   togglerContainer.className = "wz-checkbox styledContainer";
   togglerContainer.id = layerShortcut;
-  var styled = layerToggler.htmlItem;
-  var checkbox = document.createElement("input");
+  const styled = layerToggler.htmlItem;
+  const checkbox = document.createElement("input");
   checkbox.type = "checkbox";
   checkbox.id = styled;
   checkbox.className = "toggle";
-  var cutomStyle = document.createElement('style');
-  document.head.appendChild(cutomStyle);
+  const customStyle = document.createElement("style");
+  document.head.appendChild(customStyle);
 
-  // vana stiili kustutamine
-  cutomStyle.sheet.insertRule('#layer-switcher-item_'+ layerShortcut +' {position: absolute; opacity: 0; cursor: pointer;height: 0; width: 0}');
+  // Delete old style
+  customStyle.sheet.insertRule(`#layer-switcher-item_${layerShortcut} {position: absolute; opacity: 0; cursor: pointer;height: 0; width: 0}`);
 
-  // muutmine
-  var checkboxDivBorder = document.createElement("span");
-  checkboxDivBorder.id = layerShortcut + "_styledContainer";
+  // Modify style
+  const checkboxDivBorder = document.createElement("span");
+  checkboxDivBorder.id = `${layerShortcut}_styledContainer`;
   checkboxDivBorder.className = "styledCheckbox";
 
-  // uue stiili tekitamine
-  cutomStyle.sheet.insertRule('.styledContainer {display: block; position: relative; padding-left: 28px; margin-bottom: 8px; cursor: pointer; user-select: none;}');
-  cutomStyle.sheet.insertRule('.styledCheckbox {position: absolute; left: 0px; height: 18px; width: 18px; border: 2px solid rgb(133, 155, 166); border-radius: 3px; background-color: white}');
-  cutomStyle.sheet.insertRule('.styledContainer input:checked ~ .styledCheckbox {background-color: rgb(0, 164, 235); border: 2px solid rgb(0, 164, 235)}');
-  cutomStyle.sheet.insertRule('.styledContainer input[disabled]:checked ~ .styledCheckbox {background-color: #ccc; border: 2px solid #ccc}');
-  cutomStyle.sheet.insertRule('.styledContainer input[disabled] ~ .styledCheckbox {border: 2px solid #ccc}');
-  cutomStyle.sheet.insertRule('.styledCheckbox:after {content: " "; position: absolute; display: none;}');
-  cutomStyle.sheet.insertRule('.styledContainer input:checked ~ .styledCheckbox:after {display: block}');
-  cutomStyle.sheet.insertRule('.styledContainer .styledCheckbox:after {left: 5px; top: 1px; width: 5px; height: 9px; border: solid white; border-width: 0 1px 1px 0; -webkit-transform: rotate(45deg);-ms-transform: rotate(45deg);transform: rotate(45deg)');
+  // Add new styles
+  customStyle.sheet.insertRule(`
+.styledContainer {
+  display: block;
+  position: relative;
+  padding-left: 28px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  user-select: none;
+}`);
+  customStyle.sheet.insertRule(`
+.styledCheckbox {
+  position: absolute;
+  left: 0px;
+  height: 18px;
+  width: 18px;
+  border: 2px solid rgb(133, 155, 166);
+  border-radius: 3px;
+  background-color: white
+}`);
+  customStyle.sheet.insertRule(`
+.styledContainer input:checked ~ .styledCheckbox {
+  background-color: rgb(0, 164, 235);
+  border: 2px solid rgb(0, 164, 235)
+}`);
+  customStyle.sheet.insertRule(`
+.styledContainer input[disabled]:checked ~ .styledCheckbox {
+  background-color: #ccc;
+  border: 2px solid #ccc
+}`);
+  customStyle.sheet.insertRule(`
+.styledContainer input[disabled] ~ .styledCheckbox {
+  border: 2px solid #ccc
+}`);
+  customStyle.sheet.insertRule(`
+.styledCheckbox:after {
+  content: " ";
+  position: absolute;
+  display: none;
+}`);
+  customStyle.sheet.insertRule(`
+.styledContainer input:checked ~ .styledCheckbox:after {
+  display: block
+}`);
+  customStyle.sheet.insertRule(`
+.styledContainer .styledCheckbox:after {
+  left: 5px;
+  top: 1px;
+  width: 5px;
+  height: 9px;
+  border: solid white;
+  border-width: 0 1px 1px 0;
+  -webkit-transform: rotate(45deg);
+  -ms-transform: rotate(45deg);
+  transform: rotate(45deg)
+}`);
 
-  // cutomStyle.sheet.insertRule('#toggle input:disabled {opacity: 0.3}');
-  var label = document.createElement('label');
-  label.innerHTML = " " + layerName;
+  // customStyle.sheet.insertRule("#toggle input:disabled {opacity: 0.3}");
+  const label = document.createElement("label");
+  label.innerHTML = ` ${layerName}`;
   label.htmlFor = checkbox.id;
   label.appendChild(checkbox);
   label.appendChild(checkboxDivBorder);
@@ -211,16 +270,16 @@ function addLayerToggler(groupToggler, layerName, layerArray, layer) {
   toggler.appendChild(togglerContainer);
   layer_container.appendChild(toggler);
 
-  for (var i = 0; i < layerArray.length; i++){
+  for (let i = 0; i < layerArray.length; i++) {
     checkbox.addEventListener("click", layerTogglerEventHandler(layerArray[i].layer));
     layerGroupCheckbox.addEventListener("click", layerTogglerGroupEventHandler(checkbox, layerArray[i].layer));
   }
   return layerToggler;
 }
 
-// lisab kihi
+// Adds a layer
 function layerTogglerEventHandler(layer) {
-  return function() {
+  return function () {
     if (this.checked) {
       W.map.addLayer(layer);
       layer.setVisibility(this.checked);
@@ -231,16 +290,15 @@ function layerTogglerEventHandler(layer) {
   };
 }
 
-// Paneb kõik kihid korraga kinni ja lahti
+// Opens/closes all layers at once
 function layerTogglerGroupEventHandler(checkbox, layer) {
-  return function() {
+  return function () {
     if (this.checked) {
       if (checkbox.checked) {
         W.map.addLayer(layer);
         layer.setVisibility(this.checked & checkbox.checked);
       }
-    }
-    else {
+    } else {
       if (checkbox.checked) {
         layer.setVisibility(this.checked & checkbox.checked);
         W.map.removeLayer(layer);
@@ -250,24 +308,27 @@ function layerTogglerGroupEventHandler(checkbox, layer) {
   };
 }
 
-// alammenüü sulgemine  ja avamine
-function listToggle (e) {
+// Open/close submenu
+function listToggle() {
   document.getElementById("arrow").classList.toggle("upside-down");
-  var listDisplay = document.getElementById("list");
-  if (listDisplay.style.display === "none" ) {
+  const listDisplay = document.getElementById("list");
+  if (listDisplay.style.display === "none") {
     listDisplay.style.display = "block";
   } else {
     listDisplay.style.display = "none";
   }
 }
 
-// annab kaardikihile z väärtuse
+// Configure proper Z-order for a layer
 function setZOrdering(layerTogglers) {
-  return function() {
-    for (var key in layerTogglers) {
-      for (var j = 0; j < layerTogglers[key].layerArray.length; j++) {
+  return function () {
+    for (let key in layerTogglers) {
+      if (!layerTogglers.hasOwnProperty(key)) {
+        continue;
+      }
+      for (let j = 0; j < layerTogglers[key].layerArray.length; j++) {
         if (layerTogglers[key].layerArray[j].zIndex > 0) {
-          var l = W.map.getLayersBy("uniqueName", layerTogglers[key].layerArray[j].uniqueName);
+          let l = W.map.getLayersBy("uniqueName", layerTogglers[key].layerArray[j].uniqueName);
           if (l.length > 0) {
             l[0].setZIndex(layerTogglers[key].layerArray[j].zIndex);
           }
