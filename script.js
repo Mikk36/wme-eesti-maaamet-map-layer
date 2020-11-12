@@ -26,7 +26,7 @@ init();
 
 function init(e) {
   W = unsafeWindow.W;
-  OL = unsafeWindow.OL;
+  OL = unsafeWindow.OpenLayers;
   I18n = unsafeWindow.I18n;
   if (e && e.user === null) {
     return;
